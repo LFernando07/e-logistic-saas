@@ -1,4 +1,10 @@
 {
   "name": "e-logistic-saas",
-  "private": true
+  "private": true,
+  "scripts": {
+    "build": "pnpm --filter e-logistic-saas-backend build && pnpm --filter frontend build",
+    "test": "pnpm --filter e-logistic-saas-backend test",
+    "dev:backend": "pnpm --filter e-logistic-saas-backend start:dev",
+    "dev:frontend": "pnpm --filter frontend dev"
+  }
 }
