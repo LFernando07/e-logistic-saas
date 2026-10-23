@@ -1,36 +1,87 @@
 'use client';
 
+/**
+ * @fileoverview Top Navigation Bar component.
+ * Navegación principal con enlaces a Dashboard, Tienda, Rastreo,
+ * botón dinámico de Carrito con contador en tiempo real y acceso al portal de autenticación /login.
+ */
+
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { Truck, Store, LayoutDashboard, Search, PackageCheck, User as UserIcon, LogOut } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import {
+  Truck,
+  Store,
+  LayoutDashboard,
+  Search,
+  PackageCheck,
+  ShoppingBag,
+  LogIn,
+  LogOut,
+  User as UserIcon,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { AuthModal } from './AuthModal';
 
-/**
- * Top Navigation Bar component.
- * Links across Dashboard, Storefront, Tracking lookup, and includes Auth state.
- */
 export function Navbar() {
   const pathname = usePathname();
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const router = useRouter();
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [cartCount, setCartCount] = useState<number>(0);
 
-  useEffect(() => {
+  // Sincronizar estado de autenticación y carrito desde localStorage
+  const syncState = () => {
     try {
-      const stored = localStorage.getItem('nova_auth_user');
-      if (stored) {
-        setCurrentUser(JSON.parse(stored));
+      const storedUser = localStorage.getItem('nova_auth_user');
+      setCurrentUser(storedUser ? JSON.parse(storedUser) : null);
+
+      const storedCart = localStorage.getItem('nova_cart_items_v1');
+      if (storedCart) {
+        const items = JSON.parse(storedCart);
+        if (Array.isArray(items)) {
+          const total = items.reduce((sum: number, i: any) => sum + (i.quantity || 1), 0);
+          setCartCount(total);
+        } else {
+          setCartCount(0);
+        }
+      } else {
+        setCartCount(0);
       }
     } catch {
-      // Ignorado
+      // Ignore parse errors
     }
+  };
+
+  useEffect(() => {
+    syncState();
+
+    const handleAuthChange = () => syncState();
+    const handleCartChange = () => syncState();
+
+    window.addEventListener('nova_auth_change', handleAuthChange);
+    window.addEventListener('nova_cart_change', handleCartChange);
+    window.addEventListener('storage', syncState);
+
+    return () => {
+      window.removeEventListener('nova_auth_change', handleAuthChange);
+      window.removeEventListener('nova_cart_change', handleCartChange);
+      window.removeEventListener('storage', syncState);
+    };
   }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('nova_auth_token');
     localStorage.removeItem('nova_auth_user');
+    window.dispatchEvent(new Event('nova_auth_change'));
     setCurrentUser(null);
+  };
+
+  // Abrir carrito de forma inteligente
+  const handleOpenCart = () => {
+    if (pathname === '/store') {
+      window.dispatchEvent(new Event('nova-open-cart'));
+    } else {
+      router.push('/store?open_cart=true');
+    }
   };
 
   const navLinks = [
@@ -104,8 +155,9 @@ export function Navbar() {
           })}
         </nav>
 
-        {/* Right Section: Search & Auth */}
-        <div className="flex items-center gap-3">
+        {/* Right Section: Quick Track, Cart & Auth */}
+        <div className="flex items-center gap-2.5">
+          {/* Quick Tracking Search */}
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -115,55 +167,62 @@ export function Navbar() {
                 window.location.href = `/track/${encodeURIComponent(input.value.trim())}`;
               }
             }}
-            className="relative hidden sm:block"
+            className="relative hidden lg:block"
           >
             <input
               name="trackInput"
               type="text"
               placeholder="Buscar guía (TRK-...)"
-              className="w-44 lg:w-48 rounded-lg bg-slate-900 border border-slate-800 px-3 py-1.5 pl-8 text-xs text-slate-200 placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-44 rounded-lg bg-slate-900 border border-slate-800 px-3 py-1.5 pl-8 text-xs text-slate-200 placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
             <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-slate-500" />
           </form>
 
+          {/* Cart Button in Navbar */}
+          <button
+            type="button"
+            onClick={handleOpenCart}
+            className="relative flex items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-600/15 hover:bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 transition-colors cursor-pointer"
+            title="Ver Carrito de Compras"
+          >
+            <ShoppingBag className="w-4 h-4 text-indigo-400" />
+            <span className="text-xs font-semibold hidden sm:inline">Carrito</span>
+            {cartCount > 0 && (
+              <span className="min-w-5 h-5 px-1.5 rounded-full bg-indigo-600 text-white text-[11px] font-bold flex items-center justify-center animate-pulse">
+                {cartCount}
+              </span>
+            )}
+          </button>
+
+          {/* Auth State Button: Direct link to /login or User Avatar */}
           {currentUser ? (
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-slate-300 hidden md:inline">
-                {currentUser.firstName}
+            <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800">
+              <div className="w-6 h-6 rounded-full bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 font-bold text-xs flex items-center justify-center">
+                {currentUser.firstName?.[0]?.toUpperCase() || 'U'}
+              </div>
+              <span className="text-xs font-medium text-slate-200 hidden sm:inline max-w-[90px] truncate">
+                {currentUser.firstName || currentUser.email}
               </span>
               <button
+                type="button"
                 onClick={handleLogout}
-                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-rose-400 transition-colors"
+                className="p-1 rounded text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition-colors cursor-pointer"
                 title="Cerrar Sesión"
               >
                 <LogOut className="w-3.5 h-3.5" />
               </button>
             </div>
           ) : (
-            <button
-              onClick={() => setIsAuthModalOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
+            <Link
+              href="/login"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 hover:bg-slate-850 text-slate-200 border border-slate-700 hover:border-slate-600 transition-colors"
             >
-              <UserIcon className="w-3.5 h-3.5 text-indigo-400" />
-              <span>Acceder</span>
-            </button>
+              <LogIn className="w-3.5 h-3.5 text-indigo-400" />
+              <span>Iniciar Sesión</span>
+            </Link>
           )}
-
-          <Link
-            href="/store"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
-          >
-            <Store className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Tienda</span>
-          </Link>
         </div>
       </div>
-
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-        onAuthSuccess={(user) => setCurrentUser(user)}
-      />
     </header>
   );
 }

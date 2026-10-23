@@ -72,7 +72,9 @@ export function CartDrawer({
     (sum, item) => sum + Number(item.variant.price) * item.quantity,
     0,
   );
-  const shippingCost = selectedRate ? Number(selectedRate.totalAmount) : 0;
+  const shippingCost = selectedRate
+    ? Number(selectedRate.totalAmount ?? selectedRate.rateAmount ?? 0)
+    : 0;
   const total = subtotal + shippingCost;
 
   // Fetch live shipping rates for active cart
@@ -166,7 +168,7 @@ export function CartDrawer({
         selectedCarrierRate: {
           carrierCode: selectedRate.carrierCode,
           serviceName: selectedRate.serviceName,
-          totalAmount: selectedRate.totalAmount,
+          totalAmount: Number(selectedRate.totalAmount ?? selectedRate.rateAmount ?? 0),
         },
       });
 
@@ -324,8 +326,12 @@ export function CartDrawer({
               {selectedRate && (
                 <div className="p-3 bg-indigo-950/30 border border-indigo-500/30 rounded-lg text-xs space-y-1">
                   <div className="flex items-center justify-between text-indigo-300 font-semibold">
-                    <span>Envío: {selectedRate.carrierName} ({selectedRate.serviceName})</span>
-                    <span>{formatCurrency(Number(selectedRate.totalAmount))}</span>
+                    <span>
+                      Envío: {selectedRate.carrierName || selectedRate.carrierCode} ({selectedRate.serviceName})
+                    </span>
+                    <span>
+                      {formatCurrency(Number(selectedRate.totalAmount ?? selectedRate.rateAmount ?? 0))}
+                    </span>
                   </div>
                   <p className="text-slate-400 text-[11px]">
                     Entrega estimada: {selectedRate.estimatedDeliveryDays} días hábiles
@@ -499,13 +505,15 @@ export function CartDrawer({
                           }`}
                         >
                           <div>
-                            <span className="font-semibold block">{rate.carrierName}</span>
+                            <span className="font-semibold block">
+                              {rate.carrierName || rate.carrierCode}
+                            </span>
                             <span className="text-[10px] text-slate-400">
                               {rate.serviceName} ({rate.estimatedDeliveryDays} días)
                             </span>
                           </div>
                           <span className="font-bold text-emerald-400">
-                            {formatCurrency(Number(rate.totalAmount))}
+                            {formatCurrency(Number(rate.totalAmount ?? rate.rateAmount ?? 0))}
                           </span>
                         </div>
                       ))}

@@ -68,9 +68,20 @@ export class CheckoutService {
       weightKg: totalWeightKg,
     });
 
+    const mappedRates = rates.map((r) => ({
+      ...r,
+      carrierName:
+        r.carrierCode === 'MOCK'
+          ? 'Mock Express'
+          : r.carrierCode === 'SKYDROPX'
+          ? 'Skydropx'
+          : r.carrierCode,
+      totalAmount: r.rateAmount,
+    }));
+
     return {
       totalWeightKg: Math.round(totalWeightKg * 100) / 100,
-      rates,
+      rates: mappedRates as any,
     };
   }
 

@@ -29,10 +29,11 @@ export interface Tenant {
  */
 export interface RateOption {
   carrierCode: string;
-  carrierName: string;
+  carrierName?: string;
   serviceName: string;
   serviceCode: string;
-  totalAmount: number;
+  totalAmount?: number;
+  rateAmount?: number;
   currency: string;
   estimatedDeliveryDays: number;
   deliveryDateGuaranteed?: boolean;

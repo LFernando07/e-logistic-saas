@@ -168,7 +168,7 @@ function StoreContent() {
     }
   }, []);
 
-  // 2. Synchronize active cart to localStorage
+  // 2. Synchronize active cart to localStorage and notify Navbar
   useEffect(() => {
     try {
       if (cartItems.length > 0) {
@@ -176,10 +176,18 @@ function StoreContent() {
       } else {
         localStorage.removeItem('nova_cart_items_v1');
       }
+      window.dispatchEvent(new Event('nova_cart_change'));
     } catch {
       // Ignore storage error
     }
   }, [cartItems]);
+
+  // Listen to open-cart custom event from Navbar
+  useEffect(() => {
+    const handleOpenCart = () => setIsCartOpen(true);
+    window.addEventListener('nova-open-cart', handleOpenCart);
+    return () => window.removeEventListener('nova-open-cart', handleOpenCart);
+  }, []);
 
   // 3. Load live products from backend catalog API
   useEffect(() => {
@@ -208,15 +216,21 @@ function StoreContent() {
     fetchCatalog();
   }, []);
 
-  // 4. Handle URL search params: payment_success, payment_canceled, recover_cart
+  // 4. Handle URL search params: payment_success, payment_canceled, recover_cart, open_cart
   useEffect(() => {
     const isPaymentSuccess = searchParams.get('payment_success');
     const isPaymentCanceled = searchParams.get('payment_canceled');
     const recoverCartToken = searchParams.get('recover_cart');
+    const isOpenCartParam = searchParams.get('open_cart');
+
+    if (isOpenCartParam === 'true') {
+      setIsCartOpen(true);
+    }
 
     if (isPaymentSuccess === 'true') {
       localStorage.removeItem('nova_cart_items_v1');
       setCartItems([]);
+      window.dispatchEvent(new Event('nova_cart_change'));
       setBannerNotice({
         type: 'success',
         title: '¡Pago Confirmado con Éxito con Stripe!',
@@ -392,17 +406,6 @@ function StoreContent() {
             inventario y generación de guía en tiempo real.
           </p>
         </div>
-
-        {/* Floating Cart Button in Store */}
-        <div className="mt-6 sm:mt-0 sm:absolute sm:top-8 sm:right-8">
-          <Button
-            variant="primary"
-            onClick={() => setIsCartOpen(true)}
-            leftIcon={<ShoppingBag className="w-4 h-4" />}
-          >
-            <span>Ver Carrito ({totalCartCount})</span>
-          </Button>
-        </div>
       </div>
 
       {/* Filter and Search Bar */}
@@ -453,6 +456,28 @@ function StoreContent() {
           ))}
         </div>
       )}
+
+      {/* Real Floating Action Button (FAB) for Store Cart */}
+      <button
+        type="button"
+        onClick={() => setIsCartOpen(true)}
+        className="fixed bottom-6 right-6 z-40 flex items-center gap-2.5 px-4 sm:px-5 py-3 rounded-full bg-gradient-to-r from-indigo-600 via-indigo-500 to-indigo-600 text-white font-semibold text-xs sm:text-sm shadow-2xl shadow-indigo-600/50 border border-indigo-400/30 hover:scale-105 active:scale-95 transition-all cursor-pointer backdrop-blur-md"
+      >
+        <div className="relative">
+          <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+          {totalCartCount > 0 && (
+            <span className="absolute -top-2 -right-2 w-4 h-4 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center animate-pulse">
+              {totalCartCount}
+            </span>
+          )}
+        </div>
+        <span>Mi Carrito</span>
+        {totalCartCount > 0 && (
+          <span className="px-2 py-0.5 rounded-full bg-indigo-950/70 text-[11px] text-indigo-200 border border-indigo-400/20 font-bold">
+            {totalCartCount}
+          </span>
+        )}
+      </button>
 
       {/* Slide-over Cart Drawer */}
       <CartDrawer
