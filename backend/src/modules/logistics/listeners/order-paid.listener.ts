@@ -1,8 +1,18 @@
+/**
+ * @fileoverview OrderPaidListener
+ * Escucha de eventos interna basada en EventEmitter2 para desacoplar el dominio de E-Commerce del Logistico.
+ * Reacciona al evento 'order.paid' para generar de forma automatica y desatendida el envio postal
+ * calculando el peso acumulado de los articulos y direccion de entrega.
+ */
+
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { ShipmentService } from '../shipment/shipment.service';
 import { CarrierCode } from '@prisma/client';
 
+/**
+ * Payload emitido en el evento 'order.paid'.
+ */
 export interface OrderPaidEvent {
   id: string;
   tenantId: string;
@@ -15,12 +25,21 @@ export interface OrderPaidEvent {
   }>;
 }
 
+/**
+ * Listener reactivo que orquesta el despacho logistico al confirmarse un pago.
+ */
 @Injectable()
 export class OrderPaidListener {
   private readonly logger = new Logger(OrderPaidListener.name);
 
   constructor(private readonly shipmentService: ShipmentService) {}
 
+  /**
+   * Manejador ejecutado al dispararse el evento interno 'order.paid'.
+   * Calcula el peso acumulado en kilogramos y crea el envio mediante ShipmentService.
+   *
+   * @param order Datos de la orden pagada
+   */
   @OnEvent('order.paid')
   async handleOrderPaid(order: OrderPaidEvent): Promise<void> {
     this.logger.log(`Received order.paid event for Order #${order.orderNumber}. Dispatching logistics generation.`);

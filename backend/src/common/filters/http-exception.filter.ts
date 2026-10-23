@@ -1,3 +1,10 @@
+/**
+ * @fileoverview HttpExceptionFilter
+ * Filtro global de excepciones para estandarizar las respuestas de error HTTP de la API.
+ * Captura excepciones controladas e imprevistas, formatea la respuesta en una estructura uniforme
+ * con marca de tiempo, ruta, metodo y mensaje claro, y registra trazas de error en el log.
+ */
+
 import {
   ExceptionFilter,
   Catch,
@@ -8,10 +15,20 @@ import {
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 
+/**
+ * Filtro de excepciones capturadas a nivel global.
+ */
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(HttpExceptionFilter.name);
 
+  /**
+   * Captura cualquier excepcion disparada en el ciclo de vida de la peticion HTTP
+   * y responde con un cuerpo JSON normalizado.
+   *
+   * @param exception Excepcion o error arrojado
+   * @param host Contexto de ejecucion de NestJS
+   */
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();

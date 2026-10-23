@@ -1,3 +1,11 @@
+/**
+ * @fileoverview TrackingProcessor
+ * Consumidor y procesador de eventos de la cola BullMQ 'carrier-webhooks'.
+ * Transforma eventos crudos de multiples transportistas en un formato canonico unificado,
+ * persiste los eventos en PostgreSQL via Prisma, actualiza el estado del envio y emite
+ * eventos internos para notificaciones. En caso de fallas repetidas, redirige el trabajo a DLQ.
+ */
+
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
@@ -8,6 +16,9 @@ import { CarrierWebhookJobPayload } from '../dto/carrier-webhook-job.payload';
 import { DeadLetterProducer } from '../producers/dead-letter.producer';
 import { PrismaService } from '../../../database/prisma.service';
 
+/**
+ * Estructura de resultado estandarizada emitida tras procesar con exito un evento de rastreo.
+ */
 export interface ProcessedTrackingResult {
   jobId: string;
   trackingNumber: string;
@@ -18,6 +29,9 @@ export interface ProcessedTrackingResult {
   isDelivered: boolean;
 }
 
+/**
+ * Procesador de fondo para trabajos en la cola de webhooks de transportistas.
+ */
 @Processor(QUEUES.CARRIER_WEBHOOKS)
 export class TrackingProcessor extends WorkerHost {
   private readonly logger = new Logger(TrackingProcessor.name);
@@ -30,6 +44,15 @@ export class TrackingProcessor extends WorkerHost {
     super();
   }
 
+  /**
+   * Metodo principal ejecutado por BullMQ al consumir un trabajo de la cola.
+   * Normaliza el estado, persiste en la base de datos de forma transaccional y
+   * emite el evento 'tracking.event.processed'. Si se agotan los reintentos,
+   * envia el trabajo al Dead Letter Queue (DLQ).
+   *
+   * @param job Instancia del trabajo en BullMQ conteniendo el payload del webhook
+   * @returns Resultado procesado con el estado normalizado
+   */
   async process(job: Job<CarrierWebhookJobPayload>): Promise<ProcessedTrackingResult> {
     const { data, id, attemptsMade } = job;
     this.logger.log(`Processing tracking webhook job ${id} (Attempt ${attemptsMade + 1}) for tracking ${data.trackingNumber}`);
@@ -109,7 +132,11 @@ export class TrackingProcessor extends WorkerHost {
   }
 
   /**
-   * Canonically maps disparate carrier event codes to the unified system status.
+   * Mapea de forma canonica los codigos o cadenas de estado heterogeneos de transportistas
+   * a los estados unificados del enum TrackingEventStatus del sistema.
+   *
+   * @param rawPayload Objeto payload original enviado por el transportista
+   * @returns Estado normalizado (LABEL_CREATED, IN_TRANSIT, OUT_FOR_DELIVERY, DELIVERED, EXCEPTION, RETURNED)
    */
   public mapToCanonicalStatus(rawPayload: Record<string, unknown>): TrackingEventStatus {
     const rawStatus = String(rawPayload['status'] || rawPayload['event_type'] || '').toUpperCase();
@@ -133,6 +160,12 @@ export class TrackingProcessor extends WorkerHost {
     return TrackingEventStatus.LABEL_CREATED;
   }
 
+  /**
+   * Extrae la descripcion legible del evento a partir de claves comunes del payload.
+   *
+   * @param rawPayload Objeto payload del transportista
+   * @returns Cadena descriptiva del evento
+   */
   public extractDescription(rawPayload: Record<string, unknown>): string {
     return (
       (rawPayload['description'] as string) ||
@@ -142,6 +175,12 @@ export class TrackingProcessor extends WorkerHost {
     );
   }
 
+  /**
+   * Extrae la ubicacion geografica del evento si viene provista en el payload.
+   *
+   * @param rawPayload Objeto payload del transportista
+   * @returns Ubicacion formateada o undefined
+   */
   public extractLocation(rawPayload: Record<string, unknown>): string | undefined {
     if (typeof rawPayload['location'] === 'string') {
       return rawPayload['location'];
@@ -152,6 +191,12 @@ export class TrackingProcessor extends WorkerHost {
     return undefined;
   }
 
+  /**
+   * Extrae y normaliza la marca temporal del evento ocurrida en la red del transportista.
+   *
+   * @param rawPayload Objeto payload del transportista
+   * @returns Cadena ISO de fecha o undefined
+   */
   public extractTimestamp(rawPayload: Record<string, unknown>): string | undefined {
     return (
       (rawPayload['timestamp'] as string) ||

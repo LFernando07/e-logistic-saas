@@ -1,8 +1,18 @@
+/**
+ * @fileoverview PaymentService
+ * Servicio de procesamiento y confirmacion de pagos para ordenes de compra.
+ * Registra transacciones de pago, actualiza el estado de la orden a 'PAID' y 'PROCESSING'
+ * y emite el evento 'order.paid' para activar de forma reactiva la generacion logistica del envio.
+ */
+
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../../../database/prisma.service';
 import { PaymentProvider, PaymentStatus, OrderStatus } from '@prisma/client';
 
+/**
+ * Parametros para confirmar un pago de una orden.
+ */
 export interface ConfirmPaymentDto {
   orderId: string;
   provider: PaymentProvider;
@@ -10,6 +20,9 @@ export interface ConfirmPaymentDto {
   rawResponse?: Record<string, unknown>;
 }
 
+/**
+ * Servicio de confirmacion de pagos y orquestacion de eventos de compra.
+ */
 @Injectable()
 export class PaymentService {
   private readonly logger = new Logger(PaymentService.name);
@@ -19,6 +32,13 @@ export class PaymentService {
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
+  /**
+   * Confirma el pago de una orden de forma atomica en base de datos.
+   * Crea el registro en Payment, cambia el estado de la orden a PAID y dispara 'order.paid'.
+   *
+   * @param dto Datos del pago (orderId, pasarela/proveedor, transaccion externa)
+   * @returns Resultado con el estado actualizado y el identificador de pago generado
+   */
   async confirmPayment(dto: ConfirmPaymentDto) {
     const order = await this.prisma.order.findUnique({
       where: { id: dto.orderId },

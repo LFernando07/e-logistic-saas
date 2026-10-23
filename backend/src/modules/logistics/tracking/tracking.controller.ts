@@ -1,3 +1,11 @@
+/**
+ * @fileoverview TrackingController
+ * Controlador HTTP para el dominio de rastreo y recepcion de webhooks de transportistas.
+ * Proporciona un endpoint no bloqueante de alta concurrencia para ingesta de webhooks
+ * (con validacion de firma criptografica HMAC y derivacion inmediata a BullMQ)
+ * y un endpoint para consulta unificada de la linea de tiempo de rastreo.
+ */
+
 import {
   Controller,
   Post,
@@ -16,6 +24,9 @@ import * as crypto from 'crypto';
 import { TrackingQueueProducer } from '../../queues/producers/tracking-queue.producer';
 import { TrackingService } from './tracking.service';
 
+/**
+ * Controlador de tracking y webhooks de transportistas.
+ */
 @Controller('logistics')
 export class TrackingController {
   private readonly logger = new Logger(TrackingController.name);
