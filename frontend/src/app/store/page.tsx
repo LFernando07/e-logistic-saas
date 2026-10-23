@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Product, ProductVariant, CartItem } from '@/types';
 import { ProductCard } from '@/components/store/ProductCard';
 import { CartDrawer } from '@/components/store/CartDrawer';
 import { ecommerceApi } from '@/lib/api-client';
-import { Store, ShoppingBag, Search, Sparkles } from 'lucide-react';
+import { Store, ShoppingBag, Search, Sparkles, CheckCircle2, AlertCircle, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
 // Fallback seed products matching backend database seed
@@ -136,18 +137,51 @@ const SEED_PRODUCTS: Product[] = [
 ];
 
 /**
- * E-Commerce Storefront Page.
- * Displays merchant catalog, categories, search, variant selector, and slide-over cart with live shipping rates.
+ * Storefront Content Component with SearchParams and LocalStorage Hydration.
  */
-export default function StorePage() {
+function StoreContent() {
+  const searchParams = useSearchParams();
   const [products, setProducts] = useState<Product[]>(SEED_PRODUCTS);
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
   const [tenantId] = useState<string>('tenant-nova-1');
+  const [bannerNotice, setBannerNotice] = useState<{
+    type: 'success' | 'warning' | 'info';
+    title: string;
+    description: string;
+  } | null>(null);
 
-  // Load products from backend catalog API
+  // 1. Hydrate cart from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('nova_cart_items_v1');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setCartItems(parsed);
+        }
+      }
+    } catch {
+      // Ignore storage error
+    }
+  }, []);
+
+  // 2. Synchronize active cart to localStorage
+  useEffect(() => {
+    try {
+      if (cartItems.length > 0) {
+        localStorage.setItem('nova_cart_items_v1', JSON.stringify(cartItems));
+      } else {
+        localStorage.removeItem('nova_cart_items_v1');
+      }
+    } catch {
+      // Ignore storage error
+    }
+  }, [cartItems]);
+
+  // 3. Load live products from backend catalog API
   useEffect(() => {
     const fetchCatalog = async () => {
       try {
@@ -161,6 +195,93 @@ export default function StorePage() {
     };
     fetchCatalog();
   }, []);
+
+  // 4. Handle URL search params: payment_success, payment_canceled, recover_cart
+  useEffect(() => {
+    const isPaymentSuccess = searchParams.get('payment_success');
+    const isPaymentCanceled = searchParams.get('payment_canceled');
+    const recoverCartToken = searchParams.get('recover_cart');
+
+    if (isPaymentSuccess === 'true') {
+      localStorage.removeItem('nova_cart_items_v1');
+      setCartItems([]);
+      setBannerNotice({
+        type: 'success',
+        title: '¡Pago Confirmado con Éxito con Stripe!',
+        description:
+          'Tu orden fue procesada correctamente. Se ha enviado un recibo detallado a tu correo electrónico vía Resend y la guía de despacho ha sido asignada.',
+      });
+    } else if (isPaymentCanceled === 'true') {
+      setBannerNotice({
+        type: 'warning',
+        title: 'Pago Cancelado en Stripe Checkout',
+        description:
+          'La transacción no se completó. Tus productos siguen resguardados en tu carrito de compras para cuando desees reanudar la orden.',
+      });
+    } else if (recoverCartToken) {
+      // Restore abandoned cart via backend token
+      ecommerceApi
+        .recoverCart(recoverCartToken)
+        .then((res) => {
+          if (res.items && Array.isArray(res.items)) {
+            // Reconstruct cart items
+            const restoredItems: CartItem[] = res.items.map((rawItem: any, idx: number) => {
+              const matchedProduct = products.find((p) =>
+                p.variants?.some((v) => v.id === rawItem.variantId),
+              ) || {
+                id: `prod-recovered-${idx}`,
+                tenantId: 'tenant-nova-1',
+                title: rawItem.name || 'Producto Restaurado',
+                slug: 'producto-restaurado',
+                category: 'General',
+                imageUrl: rawItem.image,
+                isActive: true,
+                createdAt: new Date().toISOString(),
+                variants: [],
+              };
+
+              const matchedVariant = matchedProduct.variants?.find(
+                (v) => v.id === rawItem.variantId,
+              ) || {
+                id: rawItem.variantId || `var-recovered-${idx}`,
+                productId: matchedProduct.id,
+                sku: `SKU-REC-${idx}`,
+                title: 'Estándar',
+                price: rawItem.unitPrice || 0,
+                stockQuantity: 10,
+                weightKg: 1,
+                lengthCm: 20,
+                widthCm: 15,
+                heightCm: 10,
+              };
+
+              return {
+                variantId: matchedVariant.id,
+                product: matchedProduct,
+                variant: matchedVariant,
+                quantity: rawItem.quantity || 1,
+              };
+            });
+
+            setCartItems(restoredItems);
+            setIsCartOpen(true);
+            setBannerNotice({
+              type: 'info',
+              title: '¡Carrito Abandonado Recuperado con Éxito!',
+              description: `Hola ${res.customerName || 'estimado cliente'}, tus productos han sido restablecidos en el carrito. Utiliza el cupón NOVA10 para obtener un 10% de descuento adicional.`,
+            });
+          }
+        })
+        .catch(() => {
+          setBannerNotice({
+            type: 'warning',
+            title: 'Enlace de Recuperación Expirado',
+            description:
+              'El enlace para restablecer el carrito abandonado ya fue utilizado o no es válido.',
+          });
+        });
+    }
+  }, [searchParams, products]);
 
   // Filter products by category and search
   const filteredProducts = products.filter((p) => {
@@ -200,12 +321,50 @@ export default function StorePage() {
 
   const handleClearCart = () => {
     setCartItems([]);
+    try {
+      localStorage.removeItem('nova_cart_items_v1');
+    } catch {
+      // Ignore
+    }
   };
 
   const totalCartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      {/* Dynamic Status / Recovery / Payment Banner */}
+      {bannerNotice && (
+        <div
+          className={`p-4 rounded-xl border flex items-start justify-between gap-3 shadow-lg ${
+            bannerNotice.type === 'success'
+              ? 'bg-emerald-950/40 border-emerald-500/30 text-emerald-300'
+              : bannerNotice.type === 'warning'
+              ? 'bg-amber-950/40 border-amber-500/30 text-amber-300'
+              : 'bg-indigo-950/40 border-indigo-500/30 text-indigo-300'
+          }`}
+        >
+          <div className="flex items-start gap-3">
+            {bannerNotice.type === 'success' ? (
+              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+            ) : bannerNotice.type === 'warning' ? (
+              <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+            ) : (
+              <Tag className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" />
+            )}
+            <div>
+              <h4 className="text-sm font-bold text-white">{bannerNotice.title}</h4>
+              <p className="text-xs text-slate-300 mt-0.5">{bannerNotice.description}</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setBannerNotice(null)}
+            className="text-xs text-slate-400 hover:text-white px-2 py-1 rounded hover:bg-slate-800"
+          >
+            Cerrar
+          </button>
+        </div>
+      )}
+
       {/* Store Banner */}
       <div className="relative rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-slate-800 p-8 sm:p-12 overflow-hidden shadow-2xl">
         <div className="relative z-10 max-w-2xl">
@@ -294,5 +453,22 @@ export default function StorePage() {
         tenantId={tenantId}
       />
     </div>
+  );
+}
+
+/**
+ * Storefront Page with Suspense boundary for Next.js client-side search parameters.
+ */
+export default function StorePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="max-w-7xl mx-auto px-4 py-16 text-center text-slate-400">
+          Cargando catálogo de tienda...
+        </div>
+      }
+    >
+      <StoreContent />
+    </Suspense>
   );
 }

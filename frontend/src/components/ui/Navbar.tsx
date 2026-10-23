@@ -1,17 +1,37 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Truck, Store, LayoutDashboard, Search, PackageCheck } from 'lucide-react';
+import { Truck, Store, LayoutDashboard, Search, PackageCheck, User as UserIcon, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { AuthModal } from './AuthModal';
 
 /**
  * Top Navigation Bar component.
- * Links across Dashboard, Storefront, Tracking lookup, and quick switchers.
+ * Links across Dashboard, Storefront, Tracking lookup, and includes Auth state.
  */
 export function Navbar() {
   const pathname = usePathname();
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('nova_auth_user');
+      if (stored) {
+        setCurrentUser(JSON.parse(stored));
+      }
+    } catch {
+      // Ignorado
+    }
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('nova_auth_token');
+    localStorage.removeItem('nova_auth_user');
+    setCurrentUser(null);
+  };
 
   const navLinks = [
     {
@@ -84,7 +104,7 @@ export function Navbar() {
           })}
         </nav>
 
-        {/* Quick Tracking Search in Header */}
+        {/* Right Section: Search & Auth */}
         <div className="flex items-center gap-3">
           <form
             onSubmit={(e) => {
@@ -101,20 +121,49 @@ export function Navbar() {
               name="trackInput"
               type="text"
               placeholder="Buscar guía (TRK-...)"
-              className="w-48 lg:w-56 rounded-lg bg-slate-900 border border-slate-800 px-3 py-1.5 pl-8 text-xs text-slate-200 placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-44 lg:w-48 rounded-lg bg-slate-900 border border-slate-800 px-3 py-1.5 pl-8 text-xs text-slate-200 placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
             <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-slate-500" />
           </form>
+
+          {currentUser ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-slate-300 hidden md:inline">
+                {currentUser.firstName}
+              </span>
+              <button
+                onClick={handleLogout}
+                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-rose-400 transition-colors"
+                title="Cerrar Sesión"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setIsAuthModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
+            >
+              <UserIcon className="w-3.5 h-3.5 text-indigo-400" />
+              <span>Acceder</span>
+            </button>
+          )}
 
           <Link
             href="/store"
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
           >
             <Store className="w-3.5 h-3.5" />
-            <span>Tienda Demo</span>
+            <span className="hidden sm:inline">Tienda</span>
           </Link>
         </div>
       </div>
+
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onAuthSuccess={(user) => setCurrentUser(user)}
+      />
     </header>
   );
 }

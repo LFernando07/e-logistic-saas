@@ -41,13 +41,32 @@ export function CartDrawer({
   const [city, setCity] = useState<string>('Ciudad de México');
   const [state, setState] = useState<string>('CDMX');
 
+  const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'simulated'>('stripe');
   const [rates, setRates] = useState<RateOption[]>([]);
   const [selectedRate, setSelectedRate] = useState<RateOption | null>(null);
   const [isQuotingRates, setIsQuotingRates] = useState<boolean>(false);
   const [isCheckingOut, setIsCheckingOut] = useState<boolean>(false);
+  const [isSavingCart, setIsSavingCart] = useState<boolean>(false);
   const [checkoutStep, setCheckoutStep] = useState<'cart' | 'checkout' | 'success'>('cart');
   const [createdOrder, setCreatedOrder] = useState<any>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [noticeMsg, setNoticeMsg] = useState<string | null>(null);
+
+  // Auto-fill customer info if logged in
+  React.useEffect(() => {
+    try {
+      const storedUser = localStorage.getItem('nova_user');
+      if (storedUser) {
+        const user = JSON.parse(storedUser);
+        if (user.email) setCustomerEmail(user.email);
+        if (user.firstName || user.lastName) {
+          setRecipientName(`${user.firstName || ''} ${user.lastName || ''}`.trim());
+        }
+      }
+    } catch {
+      // Ignore parse error
+    }
+  }, [isOpen]);
 
   const subtotal = items.reduce(
     (sum, item) => sum + Number(item.variant.price) * item.quantity,
@@ -79,7 +98,39 @@ export function CartDrawer({
     }
   };
 
-  // Place order with atomic stock reservation and immediate payment confirmation
+  // Enviar carrito abandonado por correo usando Resend y generar cupón
+  const handleSaveAndSendAbandonedCart = async () => {
+    if (!customerEmail || !customerEmail.includes('@')) {
+      setErrorMsg('Por favor ingresa un correo electrónico válido para enviarte el carrito.');
+      return;
+    }
+    setIsSavingCart(true);
+    setErrorMsg(null);
+
+    try {
+      await ecommerceApi.recordAbandonedCart({
+        tenantId,
+        email: customerEmail,
+        customerName: recipientName,
+        items: items.map((i) => ({
+          name: `${i.product.title} - ${i.variant.title}`,
+          variantId: i.variantId,
+          quantity: i.quantity,
+          unitPrice: Number(i.variant.price),
+          image: i.product.imageUrl,
+        })),
+        totalAmount: total,
+      });
+
+      setNoticeMsg('Se ha enviado un correo con tu carrito guardado y un cupón de 10% de descuento (NOVA10).');
+    } catch (err: any) {
+      setErrorMsg(err.message || 'No se pudo registrar el carrito abandonado.');
+    } finally {
+      setIsSavingCart(false);
+    }
+  };
+
+  // Place order: Process via Stripe Checkout or simulated instant confirmation
   const handleCheckoutAndPay = async () => {
     if (!selectedRate) {
       setErrorMsg('Por favor selecciona una tarifa de envío.');
@@ -109,7 +160,19 @@ export function CartDrawer({
         },
       });
 
-      // 2. Confirm payment immediately to trigger automatic shipment creation
+      if (paymentMethod === 'stripe') {
+        // Redirigir a pasarela segura de Stripe Checkout
+        const sessionRes = await ecommerceApi.createStripeCheckoutSession(orderRes.id);
+        if (sessionRes.url) {
+          localStorage.removeItem('nova_cart_items_v1');
+          window.location.href = sessionRes.url;
+          return;
+        } else {
+          throw new Error('No se recibió la URL de sesión de Stripe Checkout.');
+        }
+      }
+
+      // Modo simulado directo
       const payRes = await ecommerceApi.confirmPayment({
         orderId: orderRes.id,
         paymentMethod: 'CREDIT_CARD',
@@ -154,6 +217,12 @@ export function CartDrawer({
           {errorMsg && (
             <div className="p-3 rounded-lg text-xs bg-rose-500/10 border border-rose-500/30 text-rose-400">
               {errorMsg}
+            </div>
+          )}
+
+          {noticeMsg && (
+            <div className="p-3 rounded-lg text-xs bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+              {noticeMsg}
             </div>
           )}
 
@@ -202,7 +271,7 @@ export function CartDrawer({
           ) : checkoutStep === 'checkout' ? (
             <div className="space-y-4">
               <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-                <h4 className="text-sm font-semibold text-white">Datos de Entrega</h4>
+                <h4 className="text-sm font-semibold text-white">Datos de Entrega y Pago</h4>
                 <button
                   type="button"
                   onClick={() => setCheckoutStep('cart')}
@@ -218,7 +287,7 @@ export function CartDrawer({
                 onChange={(e) => setRecipientName(e.target.value)}
               />
               <Input
-                label="Correo Electrónico"
+                label="Correo Electrónico (para recibo y seguimiento)"
                 type="email"
                 value={customerEmail}
                 onChange={(e) => setCustomerEmail(e.target.value)}
@@ -253,6 +322,57 @@ export function CartDrawer({
                   </p>
                 </div>
               )}
+
+              {/* Método de Pago */}
+              <div className="space-y-2 pt-2">
+                <label className="text-xs font-semibold text-slate-300 block">
+                  Método de Pago
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('stripe')}
+                    className={`p-3 rounded-lg border text-left text-xs transition-colors cursor-pointer ${
+                      paymentMethod === 'stripe'
+                        ? 'border-indigo-500 bg-indigo-500/20 text-white shadow-sm'
+                        : 'border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700'
+                    }`}
+                  >
+                    <span className="font-semibold block text-indigo-300">Stripe Checkout</span>
+                    <span className="text-[10px] text-slate-400 block mt-0.5">
+                      Tarjetas de Crédito y Débito
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('simulated')}
+                    className={`p-3 rounded-lg border text-left text-xs transition-colors cursor-pointer ${
+                      paymentMethod === 'simulated'
+                        ? 'border-indigo-500 bg-indigo-500/20 text-white shadow-sm'
+                        : 'border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700'
+                    }`}
+                  >
+                    <span className="font-semibold block text-emerald-300">Simulación Inmediata</span>
+                    <span className="text-[10px] text-slate-400 block mt-0.5">
+                      Prueba directa sin pasarela
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Abandoned Cart Save & Email Trigger */}
+              <div className="pt-2">
+                <button
+                  type="button"
+                  disabled={isSavingCart}
+                  onClick={handleSaveAndSendAbandonedCart}
+                  className="w-full text-center py-2 px-3 rounded-lg border border-slate-800 bg-slate-900/40 hover:bg-slate-800 text-indigo-400 text-xs transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  {isSavingCart
+                    ? 'Enviando carrito...'
+                    : 'Guardar carrito y recibir cupón 10% por correo (Resend)'}
+                </button>
+              </div>
             </div>
           ) : (
             <>
@@ -427,7 +547,9 @@ export function CartDrawer({
                 onClick={handleCheckoutAndPay}
                 leftIcon={<CreditCard className="w-4 h-4" />}
               >
-                Simular Pago y Generar Guía
+                {paymentMethod === 'stripe'
+                  ? 'Pagar con Stripe Checkout'
+                  : 'Simular Pago y Generar Guía'}
               </Button>
             )}
           </div>

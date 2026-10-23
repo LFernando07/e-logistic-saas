@@ -8,6 +8,7 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import * as Sentry from '@sentry/node';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
@@ -20,6 +21,17 @@ async function bootstrap() {
 
   const configService = app.get(ConfigService);
   const port = configService.get<number>('PORT', 3000);
+
+  // Inicializar Sentry si DSN está configurado
+  const sentryDsn = configService.get<string>('SENTRY_DSN');
+  if (sentryDsn) {
+    Sentry.init({
+      dsn: sentryDsn,
+      environment: configService.get<string>('NODE_ENV', 'development'),
+      tracesSampleRate: 1.0,
+    });
+    logger.log('Sentry error monitoring initialized successfully.');
+  }
 
   app.enableCors();
   app.useGlobalPipes(
