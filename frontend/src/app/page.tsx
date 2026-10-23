@@ -10,8 +10,6 @@ import {
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 
-export const instant = false;
-
 /**
  * Landing Page for NovaLogistics SaaS platform.
  * Provides high-level system overview, architecture highlights, and portal navigation.
