@@ -1,3 +1,10 @@
+/**
+ * @fileoverview AppModule
+ * Modulo raiz de la aplicacion backend.
+ * Importa y combina los modulos fundamentales de infraestructura (ConfigModule, EventEmitterModule,
+ * PrismaModule, QueuesModule) y los modulos de dominio de negocio (LogisticsModule, EcommerceModule).
+ */
+
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
@@ -7,6 +14,9 @@ import { QueuesModule } from './modules/queues/queues.module';
 import { LogisticsModule } from './modules/logistics/logistics.module';
 import { EcommerceModule } from './modules/ecommerce/ecommerce.module';
 
+/**
+ * Modulo raiz del backend monolito modular.
+ */
 @Module({
   imports: [
     ConfigModule.forRoot({

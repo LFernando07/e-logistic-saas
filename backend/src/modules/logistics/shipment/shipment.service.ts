@@ -1,9 +1,20 @@
+/**
+ * @fileoverview ShipmentService
+ * Servicio de gestion del ciclo de vida de los envios postales y de mensajeria.
+ * Se encarga de interactuar con el CarrierService (patron Strategy) para crear la guia en la
+ * paqueteria, persistir el Shipment y sus paquetes en PostgreSQL, y encolar la tarea asincrona
+ * de generacion y subida de etiqueta en BullMQ.
+ */
+
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
 import { CarrierService } from '../carrier/carrier.service';
 import { CreateShipmentDto } from '../carrier/interfaces/carrier-adapter.interface';
 import { LabelQueueProducer } from '../../queues/producers/label-queue.producer';
 
+/**
+ * Servicio de gestion y orquestacion de envios postales.
+ */
 @Injectable()
 export class ShipmentService {
   constructor(
@@ -12,6 +23,13 @@ export class ShipmentService {
     private readonly labelQueueProducer: LabelQueueProducer,
   ) {}
 
+  /**
+   * Crea un envio utilizando el transportista correspondiente a traves de su adaptador.
+   * Persiste el Shipment en la base de datos y encola el trabajo de generacion de guia en BullMQ.
+   *
+   * @param dto Informacion completa del envio (destinatario, remitente, paquetes, transportista)
+   * @returns Entidad Shipment persistida con paquetes asociados
+   */
   async createShipment(dto: CreateShipmentDto) {
     const adapter = this.carrierService.getAdapter(dto.carrierCode);
     const carrierResponse = await adapter.createShipment(dto);
@@ -58,6 +76,13 @@ export class ShipmentService {
     return shipment;
   }
 
+  /**
+   * Consulta un envio por su identificador unico incluyendo paquetes y eventos de tracking.
+   * Lanza NotFoundException si el envio no existe.
+   *
+   * @param id Identificador UUID del envio
+   * @returns Datos del envio con paquetes y eventos
+   */
   async getShipmentById(id: string) {
     const shipment = await this.prisma.shipment.findUnique({
       where: { id },

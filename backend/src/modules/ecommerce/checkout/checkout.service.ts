@@ -1,9 +1,19 @@
+/**
+ * @fileoverview CheckoutService
+ * Servicio de procesamiento transaccional de compras (Checkout).
+ * Realiza verificacion atomica de existencias de variantes, reserva y decremento de inventario,
+ * calculo de subtotales y costos de flete, emision del registro Order y emision del evento 'order.created'.
+ */
+
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../../../database/prisma.service';
 import { CheckoutDto } from './dto/checkout.dto';
 import { OrderStatus, PaymentStatus, FulfillmentStatus } from '@prisma/client';
 
+/**
+ * Servicio transaccional de checkout y reserva de inventario.
+ */
 @Injectable()
 export class CheckoutService {
   constructor(
@@ -11,6 +21,13 @@ export class CheckoutService {
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
+  /**
+   * Ejecuta el flujo completo de checkout dentro de una transaccion atomica de base de datos.
+   * Valida existencias, descuenta inventario, crea la orden con sus articulos y emite el evento 'order.created'.
+   *
+   * @param dto Informacion del cliente, direccion de entrega, tarifa de envio seleccionada y articulos
+   * @returns Resumen de la orden creada con su numero identificador y monto total
+   */
   async processCheckout(dto: CheckoutDto) {
     if (!dto.items || dto.items.length === 0) {
       throw new BadRequestException('Checkout must contain at least one item.');
