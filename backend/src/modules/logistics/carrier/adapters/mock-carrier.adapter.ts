@@ -156,4 +156,20 @@ export class MockCarrierAdapter implements CarrierAdapter {
       rawPayload,
     };
   }
+
+  /**
+   * Genera un buffer binario simulado para la etiqueta de envio en PDF o ZPL.
+   *
+   * @param trackingNumber Numero de guia a incrustar en el documento
+   * @param format Formato del archivo ('PDF' o 'ZPL')
+   * @returns Buffer binario con los datos del documento
+   */
+  async generateLabelDocument(trackingNumber: string, format: 'PDF' | 'ZPL'): Promise<Buffer> {
+    if (format === 'ZPL') {
+      const zplContent = `^XA^FO50,50^ADN,36,20^FD${trackingNumber}^FS^BY3^FO50,100^BCN,100,Y,N,N^FD${trackingNumber}^FS^XZ`;
+      return Buffer.from(zplContent, 'utf-8');
+    }
+    const pdfContent = `%PDF-1.4\n1 0 obj\n<< /Title (Shipping Label ${trackingNumber}) >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF`;
+    return Buffer.from(pdfContent, 'utf-8');
+  }
 }

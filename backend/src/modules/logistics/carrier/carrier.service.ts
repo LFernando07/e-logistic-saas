@@ -9,6 +9,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { CarrierCode } from '@prisma/client';
 import { CarrierAdapter } from './interfaces/carrier-adapter.interface';
 import { MockCarrierAdapter } from './adapters/mock-carrier.adapter';
+import { SkydropxAdapter } from './adapters/skydropx.adapter';
 
 /**
  * Gestor y resolutor de estrategias de paqueterias integradas.
@@ -17,8 +18,12 @@ import { MockCarrierAdapter } from './adapters/mock-carrier.adapter';
 export class CarrierService {
   private readonly adapters = new Map<CarrierCode, CarrierAdapter>();
 
-  constructor(private readonly mockAdapter: MockCarrierAdapter) {
+  constructor(
+    private readonly mockAdapter: MockCarrierAdapter,
+    private readonly skydropxAdapter: SkydropxAdapter,
+  ) {
     this.registerAdapter(mockAdapter);
+    this.registerAdapter(skydropxAdapter);
   }
 
   /**

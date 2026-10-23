@@ -3,29 +3,39 @@ import { NotFoundException } from '@nestjs/common';
 import { CarrierCode, TrackingEventStatus } from '@prisma/client';
 import { CarrierService } from './carrier.service';
 import { MockCarrierAdapter } from './adapters/mock-carrier.adapter';
+import { SkydropxAdapter } from './adapters/skydropx.adapter';
 
-describe('CarrierService & MockCarrierAdapter', () => {
+describe('CarrierService & Carrier Adapters', () => {
   let carrierService: CarrierService;
   let mockAdapter: MockCarrierAdapter;
+  let skydropxAdapter: SkydropxAdapter;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [CarrierService, MockCarrierAdapter],
+      providers: [CarrierService, MockCarrierAdapter, SkydropxAdapter],
     }).compile();
 
     carrierService = module.get<CarrierService>(CarrierService);
     mockAdapter = module.get<MockCarrierAdapter>(MockCarrierAdapter);
+    skydropxAdapter = module.get<SkydropxAdapter>(SkydropxAdapter);
   });
 
   it('should be defined', () => {
     expect(carrierService).toBeDefined();
     expect(mockAdapter).toBeDefined();
+    expect(skydropxAdapter).toBeDefined();
   });
 
   it('should resolve registered carrier adapter for MOCK', () => {
     const adapter = carrierService.getAdapter(CarrierCode.MOCK);
     expect(adapter).toBe(mockAdapter);
     expect(adapter.carrierCode).toBe(CarrierCode.MOCK);
+  });
+
+  it('should resolve registered carrier adapter for SKYDROPX', () => {
+    const adapter = carrierService.getAdapter(CarrierCode.SKYDROPX);
+    expect(adapter).toBe(skydropxAdapter);
+    expect(adapter.carrierCode).toBe(CarrierCode.SKYDROPX);
   });
 
   it('should throw NotFoundException when adapter is not registered', () => {
