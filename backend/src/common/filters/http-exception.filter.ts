@@ -57,6 +57,12 @@ export class HttpExceptionFilter implements ExceptionFilter {
         `HTTP Error: ${request.method} ${request.url} - Status: ${status} - Error: ${JSON.stringify(errorResponse)}`,
         exception instanceof Error ? exception.stack : undefined,
       );
+      try {
+        const Sentry = require('@sentry/node');
+        Sentry.captureException(exception);
+      } catch {
+        // Ignorado si Sentry no está activo
+      }
     } else {
       this.logger.warn(`Client Error: ${request.method} ${request.url} - Status: ${status}`);
     }

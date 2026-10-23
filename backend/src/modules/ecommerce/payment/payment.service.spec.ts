@@ -7,10 +7,12 @@
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PaymentProvider, PaymentStatus, OrderStatus } from '@prisma/client';
 import { PaymentService } from './payment.service';
 import { PrismaService } from '../../../database/prisma.service';
+import { EmailService } from '../../notifications/email.service';
 
 describe('PaymentService', () => {
   let service: PaymentService;
@@ -57,11 +59,24 @@ describe('PaymentService', () => {
       emit: jest.fn(),
     };
 
+    const mockConfigService = {
+      get: jest.fn().mockImplementation((key: string) => {
+        if (key === 'FRONTEND_URL') return 'http://localhost:3001';
+        return undefined;
+      }),
+    };
+
+    const mockEmailService = {
+      sendOrderReceiptEmail: jest.fn().mockResolvedValue({ success: true }),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PaymentService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: EventEmitter2, useValue: mockEventEmitter },
+        { provide: ConfigService, useValue: mockConfigService },
+        { provide: EmailService, useValue: mockEmailService },
       ],
     }).compile();
 

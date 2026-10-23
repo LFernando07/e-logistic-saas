@@ -11,6 +11,14 @@ export interface EnvironmentVariables {
   SUPABASE_ANON_KEY?: string;
   SUPABASE_SERVICE_ROLE_KEY?: string;
   WEBHOOK_SECRET_DEFAULT?: string;
+  JWT_SECRET: string;
+  STRIPE_SECRET_KEY?: string;
+  STRIPE_PUBLISHABLE_KEY?: string;
+  STRIPE_WEBHOOK_SECRET?: string;
+  RESEND_API_KEY?: string;
+  RESEND_FROM_EMAIL: string;
+  SENTRY_DSN?: string;
+  FRONTEND_URL: string;
 }
 
 export const configuration = (): EnvironmentVariables => ({
@@ -26,4 +34,12 @@ export const configuration = (): EnvironmentVariables => ({
   SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || undefined,
   SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || undefined,
   WEBHOOK_SECRET_DEFAULT: process.env.WEBHOOK_SECRET_DEFAULT || 'dev_secret_key_123',
+  JWT_SECRET: process.env.JWT_SECRET || 'jwt_secret_nova_logistics_saas_2026',
+  STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY || undefined,
+  STRIPE_PUBLISHABLE_KEY: process.env.STRIPE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || undefined,
+  STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET || undefined,
+  RESEND_API_KEY: process.env.RESEND_API_KEY || undefined,
+  RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL || 'Nova Logistics <onboarding@resend.dev>',
+  SENTRY_DSN: process.env.SENTRY_DSN || process.env.NEXT_PUBLIC_SENTRY_DSN || undefined,
+  FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:3001',
 });

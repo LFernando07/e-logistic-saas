@@ -12,6 +12,8 @@ import { configuration } from './config/env.config';
 import { PrismaModule } from './database/prisma.module';
 import { QueuesModule } from './modules/queues/queues.module';
 import { StorageModule } from './modules/storage/storage.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { AuthModule } from './modules/auth/auth.module';
 import { LogisticsModule } from './modules/logistics/logistics.module';
 import { EcommerceModule } from './modules/ecommerce/ecommerce.module';
 
@@ -31,6 +33,8 @@ import { EcommerceModule } from './modules/ecommerce/ecommerce.module';
     }),
     PrismaModule,
     StorageModule,
+    NotificationsModule,
+    AuthModule,
     QueuesModule,
     LogisticsModule,
     EcommerceModule,

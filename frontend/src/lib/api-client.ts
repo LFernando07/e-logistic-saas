@@ -1,6 +1,6 @@
 /**
  * @fileoverview Type-safe HTTP Client for connecting Next.js frontend to NestJS backend APIs.
- * Includes graceful fallback and error handling for Logistics and E-Commerce domains.
+ * Includes graceful fallback and error handling for Logistics, E-Commerce, Auth, Stripe, and Cart Recovery.
  */
 
 import {
@@ -36,8 +36,18 @@ export class ApiError extends Error {
  */
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE_URL}${path}`;
+
+  let authHeader: Record<string, string> = {};
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('nova_auth_token');
+    if (token) {
+      authHeader = { Authorization: `Bearer ${token}` };
+    }
+  }
+
   const headers = {
     'Content-Type': 'application/json',
+    ...authHeader,
     ...(options.headers || {}),
   };
 
@@ -71,27 +81,49 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 }
 
 /**
+ * Authentication API Methods
+ */
+export const authApi = {
+  async register(payload: {
+    email: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+    tenantId?: string;
+  }): Promise<{ user: any; accessToken: string; message: string }> {
+    return request<{ user: any; accessToken: string; message: string }>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async login(payload: {
+    email: string;
+    password: string;
+  }): Promise<{ user: any; accessToken: string; message: string }> {
+    return request<{ user: any; accessToken: string; message: string }>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async getMe(): Promise<any> {
+    return request<any>('/auth/me', {
+      cache: 'no-store',
+    });
+  },
+};
+
+/**
  * Logistics API Methods
  */
 export const logisticsApi = {
-  /**
-   * Fetches public tracking information for a tracking number.
-   *
-   * @param trackingNumber - Carrier tracking identifier.
-   * @returns Public tracking response with milestone progress and history events.
-   */
   async getTracking(trackingNumber: string): Promise<PublicTrackingResponse> {
     return request<PublicTrackingResponse>(`/logistics/tracking/${trackingNumber}`, {
       cache: 'no-store',
     });
   },
 
-  /**
-   * Quotes shipping rates for a parcel between origin and destination postal codes.
-   *
-   * @param payload - Origin, destination, weight, dimensions and tenant identifier.
-   * @returns List of carrier rate options.
-   */
   async quoteRates(payload: {
     tenantId?: string;
     originPostalCode: string;
@@ -108,12 +140,6 @@ export const logisticsApi = {
     });
   },
 
-  /**
-   * Lists shipments for a merchant/tenant.
-   *
-   * @param tenantId - Merchant tenant UUID.
-   * @returns Array of shipment records.
-   */
   async getShipments(tenantId?: string): Promise<Shipment[]> {
     const query = tenantId ? `?tenantId=${tenantId}` : '';
     return request<Shipment[]>(`/logistics/shipments${query}`, {
@@ -121,11 +147,6 @@ export const logisticsApi = {
     });
   },
 
-  /**
-   * Fetches carrier accounts configured for a tenant.
-   *
-   * @param tenantId - Merchant tenant UUID.
-   */
   async getCarrierAccounts(tenantId?: string): Promise<CarrierAccount[]> {
     const query = tenantId ? `?tenantId=${tenantId}` : '';
     return request<CarrierAccount[]>(`/logistics/carriers/accounts${query}`, {
@@ -133,9 +154,6 @@ export const logisticsApi = {
     });
   },
 
-  /**
-   * Triggers manual shipment creation and label generation job.
-   */
   async createShipment(payload: {
     tenantId: string;
     carrierCode: string;
@@ -155,9 +173,6 @@ export const logisticsApi = {
     });
   },
 
-  /**
-   * Simulates a carrier webhook tracking event for testing and demonstrations.
-   */
   async simulateWebhookEvent(payload: {
     trackingNumber: string;
     carrierCode: string;
@@ -179,9 +194,6 @@ export const logisticsApi = {
  * E-Commerce API Methods
  */
 export const ecommerceApi = {
-  /**
-   * Fetches published products for a tenant catalog.
-   */
   async getProducts(params?: {
     tenantId?: string;
     tenantSlug?: string;
@@ -195,14 +207,11 @@ export const ecommerceApi = {
     if (params?.search) searchParams.append('search', params.search);
 
     const query = searchParams.toString() ? `?${searchParams.toString()}` : '';
-    return request<Product[]>(`/ecommerce/catalog${query}`, {
+    return request<Product[]>(`/ecommerce/products${query}`, {
       cache: 'no-store',
     });
   },
 
-  /**
-   * Fetches real-time shipping rate options for an active cart and delivery address.
-   */
   async getCartRates(payload: {
     tenantId: string;
     destinationPostalCode: string;
@@ -214,9 +223,6 @@ export const ecommerceApi = {
     });
   },
 
-  /**
-   * Creates an order with atomic stock reservation.
-   */
   async checkout(payload: {
     tenantId: string;
     customerEmail: string;
@@ -242,9 +248,16 @@ export const ecommerceApi = {
     });
   },
 
-  /**
-   * Confirms payment and triggers shipment creation and label generation worker.
-   */
+  async createStripeCheckoutSession(orderId: string): Promise<{ sessionId: string; url: string; simulated?: boolean }> {
+    return request<{ sessionId: string; url: string; simulated?: boolean }>(
+      '/ecommerce/payments/stripe/checkout-session',
+      {
+        method: 'POST',
+        body: JSON.stringify({ orderId }),
+      },
+    );
+  },
+
   async confirmPayment(payload: {
     orderId: string;
     paymentMethod: string;
@@ -253,6 +266,31 @@ export const ecommerceApi = {
     return request<any>('/ecommerce/payments/confirm', {
       method: 'POST',
       body: JSON.stringify(payload),
+    });
+  },
+
+  async recordAbandonedCart(payload: {
+    tenantId: string;
+    email: string;
+    customerName?: string;
+    items: Array<{ name: string; quantity: number; unitPrice: number; image?: string }>;
+    totalAmount: number;
+  }): Promise<{ success: boolean; recoveryToken: string; recoveryUrl: string }> {
+    return request<any>('/ecommerce/cart/abandoned', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async recoverCart(token: string): Promise<{
+    success: boolean;
+    email: string;
+    customerName?: string;
+    items: any[];
+    totalAmount: number;
+  }> {
+    return request<any>(`/ecommerce/cart/recover/${token}`, {
+      cache: 'no-store',
     });
   },
 };

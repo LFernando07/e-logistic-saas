@@ -116,6 +116,7 @@ model Tenant {
   payments        Payment[]
   carrierAccounts CarrierAccount[]
   shipments       Shipment[]
+  abandonedCarts  AbandonedCart[]
 
   @@index([slug])
   @@schema("store")
@@ -257,6 +258,27 @@ model Payment {
   @@index([orderId])
   @@index([tenantId])
   @@index([transactionId])
+  @@schema("store")
+}
+
+model AbandonedCart {
+  id            String    @id @default(uuid())
+  tenantId      String
+  email         String
+  customerName  String?
+  items         Json
+  totalAmount   Decimal   @db.Decimal(10, 2)
+  recoveryToken String    @unique
+  isRecovered   Boolean   @default(false)
+  emailSentAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([email])
+  @@index([recoveryToken])
   @@schema("store")
 }
 
