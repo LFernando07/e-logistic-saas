@@ -10,8 +10,9 @@ import { CatalogService } from './catalog.service';
 
 /**
  * Controlador REST para el catalogo de productos.
+ * Soporta las rutas /ecommerce/products y /ecommerce/catalog para compatibilidad total.
  */
-@Controller('ecommerce/products')
+@Controller(['ecommerce/products', 'ecommerce/catalog'])
 export class CatalogController {
   constructor(private readonly catalogService: CatalogService) {}
 

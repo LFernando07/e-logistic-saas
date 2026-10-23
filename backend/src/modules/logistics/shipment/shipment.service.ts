@@ -95,4 +95,24 @@ export class ShipmentService {
 
     return shipment;
   }
+
+  /**
+   * Lista los envios registrados en el sistema, ordenados cronologicamente de forma descendente.
+   * Permite filtrar opcionalmente por identificador del tenant/comercio.
+   *
+   * @param tenantId Identificador opcional del tenant
+   * @returns Listado de envios con sus paquetes y eventos de rastreo
+   */
+  async listShipments(tenantId?: string) {
+    return this.prisma.shipment.findMany({
+      where: tenantId ? { tenantId } : undefined,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        packages: true,
+        trackingEvents: {
+          orderBy: { eventTimestamp: 'desc' },
+        },
+      },
+    });
+  }
 }

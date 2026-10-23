@@ -218,6 +218,146 @@ async function main() {
   console.log(`     - ${productB.title}`);
   console.log(`     - ${productC.title}`);
 
+  // 5. Crear Envios Demo con Eventos de Seguimiento (TRK-NOVA-001, TRK-NOVA-002, TRK-NOVA-003)
+  const shipment1 = await prisma.shipment.upsert({
+    where: { trackingNumber: 'TRK-NOVA-001' },
+    update: {},
+    create: {
+      tenantId: tenant.id,
+      carrierCode: CarrierCode.SKYDROPX,
+      serviceCode: 'express',
+      trackingNumber: 'TRK-NOVA-001',
+      status: 'IN_TRANSIT',
+      labelUrl: 'https://preview.storage.supabase.co/labels/demo-label.pdf',
+      rateAmount: 185.0,
+      currency: 'MXN',
+      estimatedDeliveryAt: new Date(Date.now() + 3600 * 1000 * 48),
+      originAddress: {
+        city: 'Ciudad de México',
+        state: 'CDMX',
+        postalCode: '01000',
+        country: 'MEX',
+      },
+      destinationAddress: {
+        name: 'Carlos Mendoza',
+        city: 'Guadalajara',
+        state: 'Jalisco',
+        postalCode: '44100',
+        country: 'MEX',
+      },
+      packages: {
+        create: [
+          {
+            weightKg: 1.5,
+            lengthCm: 25,
+            widthCm: 20,
+            heightCm: 15,
+            packageType: 'BOX',
+          },
+        ],
+      },
+      trackingEvents: {
+        create: [
+          {
+            status: 'LABEL_CREATED',
+            rawStatus: 'LABEL_GENERATED',
+            description: 'Guía de transporte generada en el sistema.',
+            location: 'Portal Nova Logistics',
+            carrierCode: CarrierCode.SKYDROPX,
+            eventTimestamp: new Date(Date.now() - 3600 * 1000 * 24),
+          },
+          {
+            status: 'IN_TRANSIT',
+            rawStatus: 'PICKED_UP',
+            description: 'Paquete recolectado por transportista en almacén de origen.',
+            location: 'Almacén Central Álvaro Obregón, CDMX',
+            carrierCode: CarrierCode.SKYDROPX,
+            eventTimestamp: new Date(Date.now() - 3600 * 1000 * 18),
+          },
+          {
+            status: 'IN_TRANSIT',
+            rawStatus: 'IN_TRANSIT',
+            description: 'En tránsito hacia el centro de distribución metropolitano.',
+            location: 'HUB Central CDMX, México',
+            carrierCode: CarrierCode.SKYDROPX,
+            eventTimestamp: new Date(Date.now() - 3600 * 1000 * 6),
+          },
+        ],
+      },
+    },
+  });
+
+  const shipment2 = await prisma.shipment.upsert({
+    where: { trackingNumber: 'TRK-NOVA-002' },
+    update: {},
+    create: {
+      tenantId: tenant.id,
+      carrierCode: CarrierCode.FEDEX,
+      serviceCode: 'standard',
+      trackingNumber: 'TRK-NOVA-002',
+      status: 'OUT_FOR_DELIVERY',
+      rateAmount: 145.0,
+      currency: 'MXN',
+      estimatedDeliveryAt: new Date(Date.now() + 3600 * 1000 * 6),
+      originAddress: {
+        city: 'Ciudad de México',
+        state: 'CDMX',
+        postalCode: '01000',
+        country: 'MEX',
+      },
+      destinationAddress: {
+        name: 'Andrea Morales',
+        city: 'Monterrey',
+        state: 'Nuevo León',
+        postalCode: '64000',
+        country: 'MEX',
+      },
+      packages: {
+        create: [
+          {
+            weightKg: 0.8,
+            lengthCm: 34,
+            widthCm: 22,
+            heightCm: 12,
+            packageType: 'BOX',
+          },
+        ],
+      },
+      trackingEvents: {
+        create: [
+          {
+            status: 'LABEL_CREATED',
+            rawStatus: 'LABEL_GENERATED',
+            description: 'Etiqueta creada y lista para recolección.',
+            location: 'CDMX',
+            carrierCode: CarrierCode.FEDEX,
+            eventTimestamp: new Date(Date.now() - 3600 * 1000 * 36),
+          },
+          {
+            status: 'IN_TRANSIT',
+            rawStatus: 'IN_TRANSIT',
+            description: 'Arribo a estación de transferencia regional.',
+            location: 'Monterrey HUB Norte',
+            carrierCode: CarrierCode.FEDEX,
+            eventTimestamp: new Date(Date.now() - 3600 * 1000 * 12),
+          },
+          {
+            status: 'OUT_FOR_DELIVERY',
+            rawStatus: 'OUT_FOR_DELIVERY',
+            description: 'En unidad de reparto asignada para entrega hoy.',
+            location: 'Ruta San Pedro Garza García',
+            carrierCode: CarrierCode.FEDEX,
+            eventTimestamp: new Date(Date.now() - 3600 * 1000 * 2),
+          },
+        ],
+      },
+    },
+  });
+
+  console.log(`[OK] Envíos demo creados con eventos de seguimiento:`);
+  console.log(`     - ${shipment1.trackingNumber} (${shipment1.status})`);
+  console.log(`     - ${shipment2.trackingNumber} (${shipment2.status})`);
+
   console.log('--- SEED COMPLETADO SATISFACTORIAMENTE ---');
 }
 

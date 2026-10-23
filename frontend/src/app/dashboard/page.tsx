@@ -105,8 +105,8 @@ export default function DashboardPage() {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
 
   // Load live shipments from backend
-  const loadShipments = async () => {
-    setIsLoading(true);
+  const loadShipments = async (showLoading: boolean = false) => {
+    if (showLoading) setIsLoading(true);
     try {
       const data = await logisticsApi.getShipments();
       if (data && data.length > 0) {
@@ -115,12 +115,12 @@ export default function DashboardPage() {
     } catch {
       // Fallback kept gracefully
     } finally {
-      setIsLoading(false);
+      if (showLoading) setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    loadShipments();
+    loadShipments(false);
   }, []);
 
   // Metrics calculations
@@ -151,7 +151,7 @@ export default function DashboardPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={loadShipments}
+            onClick={() => loadShipments(true)}
             isLoading={isLoading}
             leftIcon={<RefreshCw className="w-3.5 h-3.5" />}
           >

@@ -79,8 +79,8 @@ function TrackingContent() {
   const [isSimulatorOpen, setIsSimulatorOpen] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
 
-  const fetchTracking = async () => {
-    setIsLoading(true);
+  const fetchTracking = async (showLoading: boolean = false) => {
+    if (showLoading) setIsLoading(true);
     try {
       const data = await logisticsApi.getTracking(trackingNumber);
       if (data) {
@@ -89,12 +89,12 @@ function TrackingContent() {
     } catch {
       // Graceful fallback preserved
     } finally {
-      setIsLoading(false);
+      if (showLoading) setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchTracking();
+    fetchTracking(false);
   }, [trackingNumber]);
 
   const handleCopy = () => {
@@ -131,7 +131,7 @@ function TrackingContent() {
           <Button
             variant="outline"
             size="sm"
-            onClick={fetchTracking}
+            onClick={() => fetchTracking(true)}
             isLoading={isLoading}
             leftIcon={<RefreshCw className="w-3.5 h-3.5" />}
           >
