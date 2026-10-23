@@ -66,6 +66,10 @@ export class PaymentService {
    * @returns URL de redirección a la pasarela segura de Stripe
    */
   async createStripeCheckoutSession(orderId: string) {
+    if (!orderId) {
+      throw new BadRequestException('El identificador orderId es requerido para generar la sesión de Stripe.');
+    }
+
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
       include: {
@@ -195,9 +199,14 @@ export class PaymentService {
    *
    * @param dto Datos del pago (orderId, pasarela/proveedor, transacción externa)
    */
-  async confirmPayment(dto: ConfirmPaymentDto) {
+  async confirmPayment(dto: ConfirmPaymentDto & { id?: string; paymentMethod?: string }) {
+    const targetOrderId = dto.orderId || dto.id;
+    if (!targetOrderId) {
+      throw new BadRequestException('El campo orderId es requerido para confirmar el pago.');
+    }
+
     const order = await this.prisma.order.findUnique({
-      where: { id: dto.orderId },
+      where: { id: targetOrderId },
       include: {
         items: true,
         tenant: true,
@@ -205,13 +214,15 @@ export class PaymentService {
     });
 
     if (!order) {
-      throw new NotFoundException(`Order with ID ${dto.orderId} was not found.`);
+      throw new NotFoundException(`Order with ID ${targetOrderId} was not found.`);
     }
 
     if (order.paymentStatus === PaymentStatus.PAID) {
       throw new BadRequestException(`Order ${order.orderNumber} is already paid.`);
     }
 
+    const provider =
+      dto.provider || (dto.paymentMethod === 'STRIPE' ? PaymentProvider.STRIPE : PaymentProvider.SIMULATED);
     const transactionId = dto.transactionId || `tx_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
     const result = await this.prisma.$transaction(async (tx) => {
@@ -219,7 +230,7 @@ export class PaymentService {
         data: {
           orderId: order.id,
           tenantId: order.tenantId,
-          provider: dto.provider,
+          provider,
           transactionId,
           amount: order.totalAmount,
           currency: order.currency,

@@ -159,7 +159,8 @@ export class CheckoutService {
         });
       }
 
-      const shippingFee = Number(dto.selectedShippingRate.rateAmount);
+      const selectedRate = (dto as any).selectedShippingRate || (dto as any).selectedCarrierRate || {};
+      const shippingFee = Number(selectedRate.rateAmount ?? selectedRate.totalAmount ?? 0);
       const taxTotal = 0;
       const totalAmount = subtotal + shippingFee + taxTotal;
 
@@ -172,7 +173,7 @@ export class CheckoutService {
           customerPhone: dto.customerPhone,
           shippingAddress: dto.shippingAddress as object,
           billingAddress: (dto.billingAddress || dto.shippingAddress) as object,
-          currency: dto.selectedShippingRate.currency,
+          currency: selectedRate.currency || 'USD',
           subtotal,
           shippingFee,
           taxTotal,
@@ -196,6 +197,7 @@ export class CheckoutService {
       this.eventEmitter.emit('order.created', order);
 
       return {
+        id: order.id,
         orderId: order.id,
         orderNumber: order.orderNumber,
         subtotal: order.subtotal,

@@ -165,6 +165,12 @@ export function CartDrawer({
           country: 'MEX',
         },
         items: items.map((i) => ({ variantId: i.variantId, quantity: i.quantity })),
+        selectedShippingRate: {
+          carrierCode: selectedRate.carrierCode,
+          serviceCode: selectedRate.serviceCode || selectedRate.serviceName,
+          rateAmount: Number(selectedRate.totalAmount ?? selectedRate.rateAmount ?? 0),
+          currency: selectedRate.currency || 'USD',
+        },
         selectedCarrierRate: {
           carrierCode: selectedRate.carrierCode,
           serviceName: selectedRate.serviceName,
@@ -172,9 +178,14 @@ export function CartDrawer({
         },
       });
 
+      const targetOrderId = orderRes.id || orderRes.orderId;
+      if (!targetOrderId) {
+        throw new Error('No se pudo obtener el identificador de la orden creada.');
+      }
+
       if (paymentMethod === 'stripe') {
         // Redirigir a pasarela segura de Stripe Checkout
-        const sessionRes = await ecommerceApi.createStripeCheckoutSession(orderRes.id);
+        const sessionRes = await ecommerceApi.createStripeCheckoutSession(targetOrderId);
         if (sessionRes.url) {
           localStorage.removeItem('nova_cart_items_v1');
           window.location.href = sessionRes.url;
@@ -184,14 +195,25 @@ export function CartDrawer({
         }
       }
 
+      const resolvedOrderId = orderRes.orderId || orderRes.id;
+      if (!resolvedOrderId) {
+        throw new Error('No se pudo obtener el identificador de la orden creada.');
+      }
+
       // Modo simulado directo
       const payRes = await ecommerceApi.confirmPayment({
-        orderId: orderRes.id,
-        paymentMethod: 'CREDIT_CARD',
+        orderId: resolvedOrderId,
+        provider: 'SIMULATED',
+        paymentMethod: 'SIMULATED',
         transactionReference: `TX-${Date.now()}`,
       });
 
-      setCreatedOrder(payRes.order || orderRes);
+      setCreatedOrder({
+        ...orderRes,
+        id: resolvedOrderId,
+        orderId: resolvedOrderId,
+        ...(payRes.order || {}),
+      });
       setCheckoutStep('success');
       onClearCart();
     } catch (err: any) {

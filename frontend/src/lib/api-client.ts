@@ -237,11 +237,8 @@ export const ecommerceApi = {
       phone?: string;
     };
     items: Array<{ variantId: string; quantity: number }>;
-    selectedCarrierRate: {
-      carrierCode: string;
-      serviceName: string;
-      totalAmount: number;
-    };
+    selectedShippingRate?: any;
+    selectedCarrierRate?: any;
   }): Promise<any> {
     return request<any>('/ecommerce/checkout', {
       method: 'POST',
@@ -261,7 +258,8 @@ export const ecommerceApi = {
 
   async confirmPayment(payload: {
     orderId: string;
-    paymentMethod: string;
+    paymentMethod?: string;
+    provider?: string;
     transactionReference?: string;
   }): Promise<any> {
     return request<any>('/ecommerce/payments/confirm', {
