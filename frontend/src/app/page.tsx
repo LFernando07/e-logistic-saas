@@ -2,8 +2,6 @@ import Link from 'next/link';
 import {
   Truck,
   Store,
-  Layers,
-  ShieldCheck,
   Zap,
   ArrowRight,
   Package,
@@ -11,7 +9,8 @@ import {
   Boxes,
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
+
+export const instant = false;
 
 /**
  * Landing Page for NovaLogistics SaaS platform.
@@ -21,7 +20,7 @@ export default function HomePage() {
   return (
     <div className="relative overflow-hidden">
       {/* Background radial gradient glow */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] bg-gradient-to-b from-indigo-600/20 via-cyan-500/10 to-transparent blur-3xl pointer-events-none -z-10" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-250 h-125 bg-linear-to-b from-indigo-600/20 via-cyan-500/10 to-transparent blur-3xl pointer-events-none -z-10" />
 
       {/* Hero Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-20 text-center">
@@ -32,7 +31,7 @@ export default function HomePage() {
 
         <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-white max-w-4xl mx-auto leading-tight">
           Logística Multitransportista &{' '}
-          <span className="bg-gradient-to-r from-indigo-400 via-cyan-400 to-emerald-400 bg-clip-text text-transparent">
+          <span className="bg-linear-to-r from-indigo-400 via-cyan-400 to-emerald-400 bg-clip-text text-transparent">
             E-Commerce Integrado
           </span>
         </h1>
