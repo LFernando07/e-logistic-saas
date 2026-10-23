@@ -13,6 +13,7 @@
     "start:prod": "node dist/main",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
+    "seed": "ts-node src/scripts/seed.ts",
     "verify": "ts-node src/scripts/verify-connections.ts",
     "test": "jest",
     "test:watch": "jest --watch",
