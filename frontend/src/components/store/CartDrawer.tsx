@@ -87,9 +87,12 @@ export function CartDrawer({
         destinationPostalCode: postalCode,
         items: items.map((i) => ({ variantId: i.variantId, quantity: i.quantity })),
       });
-      setRates(quoted);
-      if (quoted.length > 0) {
-        setSelectedRate(quoted[0]);
+      const validRates = Array.isArray(quoted) ? quoted : (quoted as any)?.rates || [];
+      setRates(validRates);
+      if (validRates.length > 0) {
+        setSelectedRate(validRates[0]);
+      } else {
+        setErrorMsg('No se encontraron paqueterías disponibles para este código postal.');
       }
     } catch (err: any) {
       setErrorMsg(err.message || 'Error al cotizar envío para este código postal.');
@@ -97,6 +100,13 @@ export function CartDrawer({
       setIsQuotingRates(false);
     }
   };
+
+  // Auto-cotizar al abrir si hay artículos y C.P.
+  React.useEffect(() => {
+    if (isOpen && items.length > 0 && rates.length === 0 && !isQuotingRates) {
+      handleQuoteRates();
+    }
+  }, [isOpen, items.length]);
 
   // Enviar carrito abandonado por correo usando Resend y generar cupón
   const handleSaveAndSendAbandonedCart = async () => {

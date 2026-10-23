@@ -14,7 +14,8 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import Stripe from 'stripe';
+import type Stripe from 'stripe';
+const StripeClient = require('stripe');
 import { PrismaService } from '../../../database/prisma.service';
 import { EmailService } from '../../notifications/email.service';
 import { PaymentProvider, PaymentStatus, OrderStatus } from '@prisma/client';
@@ -45,7 +46,7 @@ export class PaymentService {
       this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3001';
 
     if (stripeKey && stripeKey.startsWith('sk_')) {
-      this.stripe = new Stripe(stripeKey, {
+      this.stripe = new StripeClient(stripeKey, {
         typescript: true,
         appInfo: {
           name: 'Nova Logistics SaaS',
