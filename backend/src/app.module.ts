@@ -11,6 +11,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 import { configuration } from './config/env.config';
 import { PrismaModule } from './database/prisma.module';
 import { QueuesModule } from './modules/queues/queues.module';
+import { StorageModule } from './modules/storage/storage.module';
 import { LogisticsModule } from './modules/logistics/logistics.module';
 import { EcommerceModule } from './modules/ecommerce/ecommerce.module';
 
@@ -29,6 +30,7 @@ import { EcommerceModule } from './modules/ecommerce/ecommerce.module';
       maxListeners: 20,
     }),
     PrismaModule,
+    StorageModule,
     QueuesModule,
     LogisticsModule,
     EcommerceModule,

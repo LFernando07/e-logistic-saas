@@ -14,6 +14,9 @@ import { LabelQueueProducer } from './producers/label-queue.producer';
 import { NotificationQueueProducer } from './producers/notification-queue.producer';
 import { DeadLetterProducer } from './producers/dead-letter.producer';
 import { TrackingProcessor } from './processors/tracking.processor';
+import { LabelProcessor } from './processors/label.processor';
+import { CarrierModule } from '../logistics/carrier/carrier.module';
+import { StorageModule } from '../storage/storage.module';
 
 /**
  * Modulo que orquesta las colas de mensajeria asincrona del sistema logistico.
@@ -22,6 +25,8 @@ import { TrackingProcessor } from './processors/tracking.processor';
  */
 @Module({
   imports: [
+    CarrierModule,
+    StorageModule,
     BullModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -74,6 +79,7 @@ import { TrackingProcessor } from './processors/tracking.processor';
     NotificationQueueProducer,
     DeadLetterProducer,
     TrackingProcessor,
+    LabelProcessor,
   ],
   exports: [
     BullModule,

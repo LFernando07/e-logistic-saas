@@ -95,4 +95,13 @@ export interface CarrierAdapter {
   createShipment(payload: CreateShipmentDto): Promise<CarrierShipmentResponse>;
   track(trackingNumber: string): Promise<NormalizedTrackingHistory>;
   parseWebhook(rawPayload: Record<string, unknown>): NormalizedTrackingEvent;
+
+  /**
+   * Genera el buffer binario del documento de la guia de envio (PDF o ZPL).
+   *
+   * @param trackingNumber Numero de guia generado
+   * @param format Formato del archivo ('PDF' o 'ZPL')
+   * @returns Buffer binario con los datos del documento
+   */
+  generateLabelDocument?(trackingNumber: string, format: 'PDF' | 'ZPL'): Promise<Buffer>;
 }
