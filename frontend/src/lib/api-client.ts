@@ -217,10 +217,11 @@ export const ecommerceApi = {
     destinationPostalCode: string;
     items: Array<{ variantId: string; quantity: number }>;
   }): Promise<RateOption[]> {
-    return request<RateOption[]>('/ecommerce/checkout/rates', {
+    const res = await request<any>('/ecommerce/checkout/rates', {
       method: 'POST',
       body: JSON.stringify(payload),
     });
+    return Array.isArray(res) ? res : res?.rates || [];
   },
 
   async checkout(payload: {

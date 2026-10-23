@@ -146,7 +146,7 @@ function StoreContent() {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
-  const [tenantId] = useState<string>('tenant-nova-1');
+  const [tenantId, setTenantId] = useState<string>('1e2f376f-d11a-45a9-835e-67f67fdf3e7e');
   const [bannerNotice, setBannerNotice] = useState<{
     type: 'success' | 'warning' | 'info';
     title: string;
@@ -187,7 +187,19 @@ function StoreContent() {
       try {
         const liveProducts = await ecommerceApi.getProducts({ tenantSlug: 'nova-store' });
         if (liveProducts && liveProducts.length > 0) {
-          setProducts(liveProducts);
+          const fallbackImages = [
+            'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=600&q=80',
+            'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=600&q=80',
+            'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=600&q=80',
+          ];
+          const enriched = liveProducts.map((p, idx) => ({
+            ...p,
+            imageUrl: p.imageUrl || fallbackImages[idx % fallbackImages.length],
+          }));
+          setProducts(enriched);
+          if (liveProducts[0]?.tenantId) {
+            setTenantId(liveProducts[0].tenantId);
+          }
         }
       } catch {
         // Keeps graceful fallback seed products
